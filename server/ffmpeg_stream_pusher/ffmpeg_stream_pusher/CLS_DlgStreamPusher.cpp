@@ -557,6 +557,10 @@ int audio_thr(LPVOID lpParam)
 	for (int i = 0; i < pFmtCtx->nb_streams; i++){
 		if (pFmtCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO){
 			iAudioIndex = i;
+			AVCodec *tmpCodec = avcodec_find_decoder(pFmtCtx->streams[i]->codec->codec_id);
+			if (0 > avcodec_open2(pFmtCtx->streams[i]->codec, tmpCodec, NULL)){
+				TRACE("can not find or open decoder!\n");
+			}
 			break;
 		}
 	}
@@ -589,7 +593,7 @@ int audio_thr(LPVOID lpParam)
 	AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16;
 	int out_buffer_size = av_samples_get_buffer_size(NULL, pOutputCodecCtx->channels, out_nb_samples, out_sample_fmt, 1);
 	SDL_AudioSpec wanted_spec;
-	wanted_spec.freq = pOutputCodecCtx->sample_fmt;
+	wanted_spec.freq = pOutputCodecCtx->sample_rate;
 	wanted_spec.format = AUDIO_S16SYS;
 	wanted_spec.channels = pOutputCodecCtx->channels;
 	wanted_spec.silence = 0;
