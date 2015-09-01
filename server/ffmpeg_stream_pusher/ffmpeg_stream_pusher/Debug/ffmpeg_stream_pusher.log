@@ -1,0 +1,12 @@
+﻿  CLS_DlgStreamPusher.cpp
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(253): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(261): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(450): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(511): warning C4018: “>”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(560): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(618): warning C4101: “pkt_out”: 未引用的局部变量
+  正在生成代码...
+  正在编译...
+  CLS_StreamPusher.cpp
+  正在生成代码...
+  ffmpeg_stream_pusher.vcxproj -> C:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\Debug\推流器.exe

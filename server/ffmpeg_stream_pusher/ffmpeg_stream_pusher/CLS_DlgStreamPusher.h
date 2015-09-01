@@ -42,6 +42,9 @@ extern "C"
 #include "qedit.h"
 #include "dshow.h"  //包含ICreateDevEnum
 
+//opengl
+#include "freeglut.h"
+
 #define COLOR_BLACK	 RGB(0, 0, 0)
 #define AUDIO_BUF_SIZE 1024
 #define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
@@ -59,9 +62,6 @@ typedef struct stream_info{
 
 	/************************音频相关参数-start*********************/
 	int					 m_content_out_channels;	//音频音道数
-	Uint8				*m_audio_chunk;			//音频PCM
-	Uint32				 m_audio_len;			//音频包长度
-	Uint8				*m_audio_pos;			//音频包位移
 	/************************音频相关参数-end***********************/
 }struct_stream_info;
 
@@ -148,6 +148,13 @@ private:
 			<0:失败
 	**********************/
 	int  GetDeviceInfo(int _iDeviceType);
+
+	/**********************
+	method: 获取音视频信息结构体
+	param :	
+	return: 音视频信息结构体指针
+	**********************/
+	struct_stream_info* GetStreamStrcInfo();
 
 
 	CString m_cstrFilePath;	//推送文件路径

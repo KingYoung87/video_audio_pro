@@ -55,16 +55,16 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>.\ffmepg_sdk\include;.\sdl_sdk\include;$(ProjectDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\ffmepg_sdk\include;.\sdl_sdk\include;.\gl_sdk\include;$(ProjectDir)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <OutputFile>$(OutDir)\推流器.exe</OutputFile>
-      <AdditionalLibraryDirectories>ffmepg_sdk\lib;sdl_sdk\lib\x86;directshow_sdk\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>ffmepg_sdk\lib;sdl_sdk\lib\x86;directshow_sdk\lib;gl_sdk\lib;</AdditionalLibraryDirectories>
       <AdditionalOptions> /SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>avcodec.lib;avformat.lib;avutil.lib;avdevice.lib;avfilter.lib;postproc.lib;swresample.lib;swscale.lib;SDL2.lib;iconv.lib;ddraw.lib;quartz.lib;strmbasd.lib;strmiids.lib</AdditionalDependencies>
+      <AdditionalDependencies>avcodec.lib;avformat.lib;avutil.lib;avdevice.lib;avfilter.lib;postproc.lib;swresample.lib;swscale.lib;SDL2.lib;iconv.lib;ddraw.lib;quartz.lib;strmbasd.lib;strmiids.lib;freeglut.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>

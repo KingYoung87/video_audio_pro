@@ -13,6 +13,9 @@
 #endif
 
 FILE *pFile = NULL;
+static  Uint8  *audio_chunk;
+static  Uint32  audio_len;
+static  Uint8  *audio_pos;
 int tempsize = 4608;
 char *tempcontenx = (char*)malloc(4608);//4096~4608
 int  tempcontenxlen;
@@ -500,16 +503,16 @@ void  CLS_DlgStreamPusher::fill_audio(void *udata, Uint8 *stream, int len)
 {
 	SDL_memset(stream, 0, len);
 	memset(tempcontenx, 0, 4608);
-	memcpy_s(tempcontenx, 4608, 0, 4608);
+	memcpy_s(tempcontenx, 4608, audio_pos, 4608);
 	tempcontenxlen = len;
 
-	//if (audio_len == 0)		/*  Only  play  if  we  have  data  left  */
-	//	return;
-	//len = (len>audio_len ? audio_len : len);	/*  Mix  as  much  data  as  possible  */
+	if (audio_len == 0)		/*  Only  play  if  we  have  data  left  */
+		return;
+	len = (len>audio_len ? audio_len : len);	/*  Mix  as  much  data  as  possible  */
 
-	//SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
-	//audio_pos += len;
-	//audio_len -= len;
+	SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
+	audio_pos += len;
+	audio_len -= len;
 }
 
 int audio_thr(LPVOID lpParam)
@@ -658,13 +661,13 @@ int audio_thr(LPVOID lpParam)
 		}
 
 		//设置PCM数据
-		pThis->m_pStreamInfo->m_audio_chunk = (Uint8 *)out_buffer;
-		pThis->m_pStreamInfo->m_audio_len = out_buffer_size;
-		pThis->m_pStreamInfo->m_audio_pos = pThis->m_pStreamInfo->m_audio_chunk;
+		audio_chunk = (Uint8 *)out_buffer;
+		audio_len = out_buffer_size;
+		audio_pos = audio_chunk;
 
 		//播放
 		SDL_PauseAudio(0);
-		while (pThis->m_pStreamInfo->m_audio_len > 0){
+		while (audio_len > 0){
 			//Wait until finish
 			SDL_Delay(1);
 		}
@@ -804,4 +807,9 @@ char* CLS_DlgStreamPusher::GetDeviceName(int _iDeviceType)
 	pDeviceName = dup_wchar_to_utf8(wstring);
 
 	return pDeviceName;
+}
+
+struct_stream_info* CLS_DlgStreamPusher::GetStreamStrcInfo()
+{
+	return m_pStreamInfo;
 }
