@@ -601,7 +601,9 @@ void  fill_audio(void *udata, Uint8 *stream, int len)//CLS_DlgStreamPusher::
 				struct_stream->m_audio_buf_size = sizeof(struct_stream->m_silence_buf) / frame_size * frame_size;
 			}
 			else{
-				UpdateSampleDisplay(struct_stream, (int16_t *)struct_stream->m_audio_buf, struct_stream->m_aduio_pkt_size);
+				if (struct_stream->m_show_mode == SHOW_MODE_WAVES){
+					UpdateSampleDisplay(struct_stream, (int16_t *)struct_stream->m_audio_buf, struct_stream->m_aduio_pkt_size);
+				}
 				struct_stream->m_audio_buf_size = struct_stream->m_aduio_pkt_size;
 			}
 		}
@@ -867,7 +869,7 @@ int audio_thr(LPVOID lpParam)
 		audio_len = out_buffer_size;
 		audio_pos = audio_chunk;
 
-		strct_stream_info->m_aduio_pkt_size = resampled_data_size;
+		strct_stream_info->m_aduio_pkt_size = audio_len;// resampled_data_size;
 
 		av_free_packet(&pkt);
 
@@ -1164,6 +1166,10 @@ void CLS_DlgStreamPusher::screen_display(struct_stream_info *_pstrct_streaminfo)
 
 void CLS_DlgStreamPusher::audio_display(struct_stream_info *_pstrct_streaminfo)
 {
+	if (audio_callback_time == 0){
+		TRACE("audio_callback_time == 0");
+		return;
+	}
 	int i, i_start, x, y1, y, ys, delay, n, nb_display_channels;
 	int ch, channels, h, h2, bgcolor, fgcolor;
 	int16_t time_diff;
@@ -1218,8 +1224,10 @@ void CLS_DlgStreamPusher::audio_display(struct_stream_info *_pstrct_streaminfo)
 	bgcolor = SDL_MapRGB(_pstrct_streaminfo->m_screen_surface->format, 0x00, 0x00, 0x00);
 	if (_pstrct_streaminfo->m_show_mode == SHOW_MODE_WAVES) {
 		SDL_Rect sdl_rect;
-		sdl_rect.x = 0;// _pstrct_streaminfo->m_xleft;
-		sdl_rect.y = 0;// _pstrct_streaminfo->m_ytop;
+		_pstrct_streaminfo->m_xleft = 0;
+		_pstrct_streaminfo->m_ytop = 0;
+		sdl_rect.x = _pstrct_streaminfo->m_xleft;
+		sdl_rect.y = _pstrct_streaminfo->m_ytop;
 		sdl_rect.w = _pstrct_streaminfo->m_width;
 		sdl_rect.h = _pstrct_streaminfo->m_height;
 
