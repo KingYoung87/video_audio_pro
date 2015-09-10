@@ -48,17 +48,68 @@ extern "C"
 #define COLOR_BLACK	 RGB(0, 0, 0)
 #define AUDIO_BUF_SIZE 1024
 #define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
+#define SAMPLE_ARRAY_SIZE (8 * 65536)
+
+#define FF_ALLOC_EVENT   (SDL_USEREVENT)
+#define FF_REFRESH_EVENT (SDL_USEREVENT + 1)
+#define FF_QUIT_EVENT    (SDL_USEREVENT + 2)
 
 enum DeviceType{
 	n_Video = 0,		//视频
 	n_Audio = 1		//音频
 };
+typedef struct AudioParams {
+	int freq;
+	int channels;
+	int channel_layout;
+	enum AVSampleFormat fmt;
+} AudioParams;
 
+enum ShowMode {
+	SHOW_MODE_NONE = -1, 
+	SHOW_MODE_VIDEO = 0, 
+	SHOW_MODE_WAVES = 1, 
+	SHOW_MODE_RDFT = 2, 
+	SHOW_MODE_NB = 3
+};
 typedef struct stream_info{
 	AVFormatContext		*m_pFormatCtx;
 	SDL_Thread			*m_test_audio_tid;		//音频测试线程
 	SDL_Thread			*m_test_video_tid;		//视频测试线程
 	SDL_Window			*m_show_screen;			//音视频显示SDL窗口
+	SDL_Surface			*m_screen_surface;		//与screen绑定的变量
+	int					 m_xleft;				//显示窗体的坐标及大小
+	int					 m_ytop;
+	int					 m_width;
+	int					 m_height;
+	AVStream				*m_pAudioStream;			//音频流
+	AVStream				*m_pVideoStream;			//视频流
+	AVFrame				*m_pAudioFrame;			//音频帧
+	AVFrame				*m_pVideoFrame;			//视频帧
+	SwrContext			*m_swr_ctx;
+	AudioParams			 m_audio_src;
+	AudioParams			 m_audio_tgt;
+	int					 m_audio_hw_buf_size;
+	uint8_t				*m_audio_buf;
+	int					 m_audio_buf_size;
+	int					 m_audio_buf_index;
+	int					 m_aduio_pkt_size;
+	int					 m_audio_write_buf_size;
+	int					 m_audio_last_i_start;
+	double				 m_audio_clock;
+	DECLARE_ALIGNED(16, uint8_t, m_audio_buf2)[MAX_AUDIO_FRAME_SIZE * 4];
+	uint8_t				 m_silence_buf[AUDIO_BUF_SIZE];
+	int16_t				 m_sample_array[SAMPLE_ARRAY_SIZE];
+	int					 m_sample_array_index;
+	SDL_Thread			*m_refresh_tid;			//刷新线程句柄
+	int					 m_abort_request;		//退出标记
+	int					 m_refresh;				//刷新标记
+	int					 m_show_mode;			//显示模式
+	int					 m_paused;				//暂停标记
+	int					 m_itest_start;			//测试标记
+	SDL_Renderer			*m_sdlRenderer;
+	SDL_Texture			*m_sdlTexture;
+
 
 	/************************音频相关参数-start*********************/
 	int					 m_content_out_channels;	//音频音道数
@@ -82,6 +133,8 @@ public:
 // 实现
 protected:
 	HICON m_hIcon;
+
+	CWinThread *m_pThreadEvent;					//事件处理线程
 
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
@@ -156,10 +209,74 @@ private:
 	**********************/
 	struct_stream_info* GetStreamStrcInfo();
 
+	/**********************
+	method: 处理显示区域
+	param : 
+	return: 
+	**********************/
+	void	 FillDisplayRect();
 
-	CString m_cstrFilePath;	//推送文件路径
-	BOOL		m_blUrl;			//是否进行网络流推送
-	HBRUSH	m_bkBrush;		//背景刷
+	/**********************
+	method: 同步音频
+	param : _pstrct_streaminfo:流参数信息
+			_inb_samples:样本参数
+	return:
+	**********************/
+	int SynAudio(struct_stream_info* _pstrct_streaminfo, int _inb_samples);
+
+	/**********************
+	method: 更新显示音频波形
+	param : _pstrct_streaminfo:流参数信息
+			samples:样本参数
+			samples_size:样本大小
+	return:
+	**********************/
+	//static void UpdateSampleDisplay(struct_stream_info *_pstrct_streaminfo, short *samples, int samples_size);
+
+	/**********************
+	method: 窗体刷新
+	param : opaque:流参数信息
+	return:
+	**********************/
+	static void screen_refresh(void *opaque);
+
+	/**********************
+	method: 窗体显示
+	param : _pstrct_streaminfo:流参数信息
+	return:
+	**********************/
+	static void screen_display(struct_stream_info *_pstrct_streaminfo);
+
+	/**********************
+	method: 窗体显示音频波形
+	param : _pstrct_streaminfo:流参数信息
+	return:
+	**********************/
+	static void audio_display(struct_stream_info *_pstrct_streaminfo);
+
+	/**********************
+	method: 窗体显示视频
+	param : _pstrct_streaminfo:流参数信息
+	return:
+	**********************/
+	static void video_display(struct_stream_info *_pstrct_streaminfo);
+
+	/**********************
+	method: 窗体区域填充
+	param : screen:窗体
+			x:左上角点横坐标
+			y:左上角点纵坐标
+			w:窗体宽
+			h:窗体高
+			color:颜色值
+	return:
+	**********************/
+	static void fill_rec(SDL_Surface *screen,
+		int x, int y, int w, int h, int color);
+
+	CString									m_cstrFilePath;	//推送文件路径
+	BOOL										m_blUrl;			//是否网络流推送
+	HBRUSH									m_bkBrush;		//背景刷
 
 	std::map<int, std::vector<std::string>>	m_mapDeviceInfo;	//设备信息容器
 
@@ -171,7 +288,14 @@ public:
 	**********************/
 	char*  GetDeviceName(int _iDeviceType);
 
-	static void  fill_audio(void *udata, Uint8 *stream, int len);
+	/**********************
+	method: 事件处理器
+	param : _pstrct_streaminfo:流参数信息
+	return:
+	**********************/
+	void event_loop(struct_stream_info *_pstrct_streaminfo);
+
+	//static void  fill_audio(void *udata, Uint8 *stream, int len);
 
 	struct_stream_info*						m_pStreamInfo;	//音视频全局结构体
 };
