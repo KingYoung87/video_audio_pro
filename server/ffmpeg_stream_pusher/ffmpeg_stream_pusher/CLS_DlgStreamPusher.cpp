@@ -594,7 +594,7 @@ void  fill_audio(void *udata, Uint8 *stream, int len)//CLS_DlgStreamPusher::
 		return;
 	len = (len>audio_len ? audio_len : len);	/*  Mix as  much  data  as  possible  */
 
-	while (len > 0){
+	while (len > 0 && audio_len > 0){
 		if (struct_stream->m_audio_buf_index >= struct_stream->m_audio_buf_size){
 			if (struct_stream->m_aduio_pkt_size < 0){
 				struct_stream->m_audio_buf = struct_stream->m_silence_buf;
@@ -617,6 +617,7 @@ void  fill_audio(void *udata, Uint8 *stream, int len)//CLS_DlgStreamPusher::
 		stream += len1;
 		struct_stream->m_audio_buf_index += len1;
 	}
+	audio_len = 0;
 
 	struct_stream->m_audio_write_buf_size = struct_stream->m_audio_buf_size - struct_stream->m_audio_buf_index;
 }
@@ -787,6 +788,7 @@ int audio_thr(LPVOID lpParam)
 			//没有获取到数据，继续下一次
 			continue;
 		}
+		strct_stream_info->m_pAudioFrame->nb_samples = 1024;//这里暂时写死值
 		data_size = av_samples_get_buffer_size(NULL, pOutputCodecCtx->channels,
 			strct_stream_info->m_pAudioFrame->nb_samples,
 			pOutputCodecCtx->sample_fmt, 1);
@@ -850,11 +852,6 @@ int audio_thr(LPVOID lpParam)
 		}
 #endif
 
-		/*if (swr_convert(strct_stream_info->m_swr_ctx, &out_buffer, MAX_AUDIO_FRAME_SIZE, (const uint8_t **)strct_stream_info->m_pAudioFrame->data, strct_stream_info->m_pAudioFrame->nb_samples) < 0){
-			TRACE("swr_convert < 0\n");
-			break;
-		}*/
-
 		//FIX:FLAC,MP3,AAC Different number of samples
 		/*if (wanted_spec.samples != strct_stream_info->m_pAudioFrame->nb_samples){
 			SDL_CloseAudio();
@@ -865,11 +862,12 @@ int audio_thr(LPVOID lpParam)
 		}*/
 
 		//设置PCM数据
+		TRACE("----out_buffer_size---is [%ld]\n",out_buffer_size);
 		audio_chunk = (Uint8 *)out_buffer;
 		audio_len = out_buffer_size;
 		audio_pos = audio_chunk;
 
-		strct_stream_info->m_aduio_pkt_size = audio_len;// resampled_data_size;
+		strct_stream_info->m_aduio_pkt_size = resampled_data_size;//audio_len;//
 
 		av_free_packet(&pkt);
 
@@ -895,10 +893,10 @@ int audio_thr(LPVOID lpParam)
 		}
 
 		SDL_PauseAudio(0);
-		while (audio_len > 0){
-			//Wait until finish
-			SDL_Delay(1);
-		}
+		//while (audio_len > 0){
+		//	//Wait until finish
+		//	SDL_Delay(1);
+		//}
 
 		//if (pFmtCtx->streams[iAudioIndex]->codec->sample_fmt != pOutputCodecCtx->sample_fmt
 		//	|| pFmtCtx->streams[iAudioIndex]->codec->channels != pOutputCodecCtx->channels
