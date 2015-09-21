@@ -1,22 +1,18 @@
-﻿  stdafx.cpp
-  Public_Function.cpp
-  CLS_StreamPusher.cpp
-  CLS_DlgStreamPusher.cpp
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(287): warning C4018: “<”: 有符号/无符号不匹配
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(295): warning C4018: “<”: 有符号/无符号不匹配
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(509): warning C4018: “<”: 有符号/无符号不匹配
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(595): warning C4018: “>”: 有符号/无符号不匹配
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(671): warning C4018: “<”: 有符号/无符号不匹配
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(745): warning C4244: “=”: 从“uint64_t”转换到“int”，可能丢失数据
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(769): warning C4996: 'avcodec_alloc_frame': 被声明为已否决
+﻿  CLS_DlgStreamPusher.cpp
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(312): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(320): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(535): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(695): warning C4018: “>”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(771): warning C4018: “<”: 有符号/无符号不匹配
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(845): warning C4244: “=”: 从“uint64_t”转换到“int”，可能丢失数据
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(863): warning C4996: 'avcodec_alloc_frame': 被声明为已否决
           c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\ffmepg_sdk\include\libavcodec\avcodec.h(3491) : 参见“avcodec_alloc_frame”的声明
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(775): warning C4996: 'avcodec_get_frame_defaults': 被声明为已否决
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(869): warning C4996: 'avcodec_get_frame_defaults': 被声明为已否决
           c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\ffmepg_sdk\include\libavcodec\avcodec.h(3501) : 参见“avcodec_get_frame_defaults”的声明
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(814): warning C4244: “=”: 从“int64_t”转换到“int”，可能丢失数据
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1123): warning C4101: “incr”: 未引用的局部变量
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1123): warning C4101: “frac”: 未引用的局部变量
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1123): warning C4101: “pos”: 未引用的局部变量
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1126): warning C4101: “x”: 未引用的局部变量
-c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1192): warning C4244: “=”: 从“int64_t”转换到“int16_t”，可能丢失数据
-  正在生成代码...
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(908): warning C4244: “=”: 从“int64_t”转换到“int”，可能丢失数据
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1223): warning C4101: “incr”: 未引用的局部变量
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1223): warning C4101: “frac”: 未引用的局部变量
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1223): warning C4101: “pos”: 未引用的局部变量
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1226): warning C4101: “x”: 未引用的局部变量
+c:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\ffmpeg_stream_pusher\cls_dlgstreampusher.cpp(1299): warning C4244: “=”: 从“int64_t”转换到“int16_t”，可能丢失数据
   ffmpeg_stream_pusher.vcxproj -> C:\当前项目\video_audio_pro\video_audio_pro\server\ffmpeg_stream_pusher\Debug\推流器.exe

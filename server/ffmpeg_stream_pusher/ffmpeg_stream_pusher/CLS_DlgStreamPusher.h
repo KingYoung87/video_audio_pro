@@ -51,8 +51,10 @@ extern "C"
 #define SAMPLE_ARRAY_SIZE (8 * 65536)
 
 #define FF_ALLOC_EVENT   (SDL_USEREVENT)
-#define FF_REFRESH_EVENT (SDL_USEREVENT + 1)
-#define FF_QUIT_EVENT    (SDL_USEREVENT + 2)
+#define FF_AUDIO_REFRESH_EVENT (SDL_USEREVENT + 1)
+#define FF_VIDEO_REFRESH_EVENT (SDL_USEREVENT + 2)
+#define FF_BREAK_EVENT (SDL_USEREVENT + 3)
+#define FF_QUIT_EVENT    (SDL_USEREVENT + 10)
 
 enum DeviceType{
 	n_Video = 0,		//视频
@@ -74,19 +76,26 @@ enum ShowMode {
 };
 typedef struct stream_info{
 	AVFormatContext		*m_pFormatCtx;
-	SDL_Thread			*m_test_audio_tid;		//音频测试线程
-	SDL_Thread			*m_test_video_tid;		//视频测试线程
 	SDL_Window			*m_show_screen;			//音视频显示SDL窗口
 	SDL_Surface			*m_screen_surface;		//与screen绑定的变量
 	int					 m_xleft;				//显示窗体的坐标及大小
 	int					 m_ytop;
 	int					 m_width;
 	int					 m_height;
+	int					 m_abort_request;		//退出标记
+	int					 m_refresh;				//刷新标记
+	int					 m_show_mode;			//显示模式
+	int					 m_paused;				//暂停标记
+	int					 m_itest_start;			//测试标记
+	SDL_Renderer			*m_sdlRenderer;
+	SDL_Texture			*m_sdlTexture;
+	/************************音频相关参数-start*********************/
+	SDL_Thread			*m_test_audio_tid;		//音频测试线程
+	SDL_Thread			*m_audio_refresh_tid;	//音频刷新线程句柄
 	AVStream				*m_pAudioStream;			//音频流
-	AVStream				*m_pVideoStream;			//视频流
 	AVFrame				*m_pAudioFrame;			//音频帧
-	AVFrame				*m_pVideoFrame;			//视频帧
-	SwrContext			*m_swr_ctx;
+	int					 m_content_out_channels;	//音频音道数
+	SwrContext			*m_audio_swr_ctx;
 	AudioParams			 m_audio_src;
 	AudioParams			 m_audio_tgt;
 	int					 m_audio_hw_buf_size;
@@ -101,19 +110,19 @@ typedef struct stream_info{
 	uint8_t				 m_silence_buf[AUDIO_BUF_SIZE];
 	int16_t				 m_sample_array[SAMPLE_ARRAY_SIZE];
 	int					 m_sample_array_index;
-	SDL_Thread			*m_refresh_tid;			//刷新线程句柄
-	int					 m_abort_request;		//退出标记
-	int					 m_refresh;				//刷新标记
-	int					 m_show_mode;			//显示模式
-	int					 m_paused;				//暂停标记
-	int					 m_itest_start;			//测试标记
-	SDL_Renderer			*m_sdlRenderer;
-	SDL_Texture			*m_sdlTexture;
-
-
-	/************************音频相关参数-start*********************/
-	int					 m_content_out_channels;	//音频音道数
 	/************************音频相关参数-end***********************/
+
+	/************************视频相关参数-satrt*********************/
+	SDL_Thread			*m_test_video_tid;		//视频测试线程
+	SDL_Thread			*m_video_refresh_tid;	//视频刷新线程句柄
+	AVStream				*m_pVideoStream;			//视频流
+	AVFrame				*m_pVideoFrame;			//视频帧
+	AVFrame				*m_pVideoFrameYUV;		//视频帧的YUV
+	AVPacket				*m_pVideoPacket;			//视频包
+	uint8_t				*m_pVideoOutBuffer;		//视频输出缓存
+	SwsContext			*m_video_sws_ctx;
+	
+	/************************视频相关参数-end***********************/
 }struct_stream_info;
 
 // CLS_DlgStreamPusher 对话框
@@ -149,6 +158,8 @@ public:
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnBnClickedBtnDeviceVideoTest();
 	afx_msg void OnBnClickedBtnDeviceAudioTest();
+	afx_msg void OnBnClickedBtnDeviceAudioTestStop();
+	afx_msg void OnBnClickedBtnDeviceVideoTestStop();
 
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 
@@ -225,41 +236,32 @@ private:
 	int SynAudio(struct_stream_info* _pstrct_streaminfo, int _inb_samples);
 
 	/**********************
-	method: 更新显示音频波形
-	param : _pstrct_streaminfo:流参数信息
-			samples:样本参数
-			samples_size:样本大小
-	return:
-	**********************/
-	//static void UpdateSampleDisplay(struct_stream_info *_pstrct_streaminfo, short *samples, int samples_size);
-
-	/**********************
 	method: 窗体刷新
 	param : opaque:流参数信息
 	return:
 	**********************/
-	static void screen_refresh(void *opaque);
+	void screen_refresh(void *opaque);
 
 	/**********************
 	method: 窗体显示
 	param : _pstrct_streaminfo:流参数信息
 	return:
 	**********************/
-	static void screen_display(struct_stream_info *_pstrct_streaminfo);
+	void screen_display(struct_stream_info *_pstrct_streaminfo);
 
 	/**********************
 	method: 窗体显示音频波形
 	param : _pstrct_streaminfo:流参数信息
 	return:
 	**********************/
-	static void audio_display(struct_stream_info *_pstrct_streaminfo);
+	void audio_display(struct_stream_info *_pstrct_streaminfo);
 
 	/**********************
 	method: 窗体显示视频
 	param : _pstrct_streaminfo:流参数信息
 	return:
 	**********************/
-	static void video_display(struct_stream_info *_pstrct_streaminfo);
+	void video_display(struct_stream_info *_pstrct_streaminfo);
 
 	/**********************
 	method: 窗体区域填充
@@ -274,9 +276,22 @@ private:
 	static void fill_rec(SDL_Surface *screen,
 		int x, int y, int w, int h, int color);
 
+	/**********************
+	method: 停止测试
+	return:
+	**********************/
+	void stop_test();
+
+	/**********************
+	method: 停止流推送
+	param:	opaque:流信息
+	return:
+	**********************/
+	void stream_stop(void *opaque);
+
 	CString									m_cstrFilePath;	//推送文件路径
-	BOOL										m_blUrl;			//是否网络流推送
 	HBRUSH									m_bkBrush;		//背景刷
+	BOOL										m_blUrl;			//是否网络流推送
 
 	std::map<int, std::vector<std::string>>	m_mapDeviceInfo;	//设备信息容器
 
@@ -295,7 +310,7 @@ public:
 	**********************/
 	void event_loop(struct_stream_info *_pstrct_streaminfo);
 
-	//static void  fill_audio(void *udata, Uint8 *stream, int len);
-
 	struct_stream_info*						m_pStreamInfo;	//音视频全局结构体
+	BOOL										m_blVideoShow;	//是否显示视频
+	BOOL										m_blAudioShow;	//是否显示音频
 };

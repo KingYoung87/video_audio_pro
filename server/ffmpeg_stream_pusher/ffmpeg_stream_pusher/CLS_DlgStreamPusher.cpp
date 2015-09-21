@@ -47,6 +47,8 @@ CLS_DlgStreamPusher::CLS_DlgStreamPusher(CWnd* pParent /*=NULL*/)
 	m_bkBrush = NULL;
 	m_pStreamInfo = NULL;
 	m_mapDeviceInfo.clear();
+	m_blVideoShow = FALSE;
+	m_blAudioShow = FALSE;
 }
 
 void CLS_DlgStreamPusher::DoDataExchange(CDataExchange* pDX)
@@ -72,6 +74,8 @@ BEGIN_MESSAGE_MAP(CLS_DlgStreamPusher, CDialog)
 	ON_WM_CTLCOLOR()
 	ON_BN_CLICKED(IDC_BTN_DEVICE_VIDEO_TEST, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceVideoTest)
 	ON_BN_CLICKED(IDC_BTN_DEVICE_AUDIO_TEST, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceAudioTest)
+	ON_BN_CLICKED(IDC_BTN_DEVICE_AUDIO_TEST_STOP, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceAudioTestStop)
+	ON_BN_CLICKED(IDC_BTN_DEVICE_VIDEO_TEST_STOP, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceVideoTestStop)
 END_MESSAGE_MAP()
 
 
@@ -210,7 +214,7 @@ void CLS_DlgStreamPusher::OnBnClickedCancel()
 	//退出程序
 	CDialog::OnCancel();
 }
-static int refresh_thread(void *opaque)
+static int audio_refresh_thread(void *opaque)
 {
 	struct_stream_info *pstrct_stream = (struct_stream_info *)opaque;
 	if (NULL == pstrct_stream){
@@ -219,7 +223,7 @@ static int refresh_thread(void *opaque)
 	}
 	while (!pstrct_stream->m_abort_request) {
 		SDL_Event event;
-		event.type = FF_REFRESH_EVENT;
+		event.type = FF_AUDIO_REFRESH_EVENT;
 		event.user.data1 = opaque;
 		if (!pstrct_stream->m_refresh) {
 			pstrct_stream->m_refresh = 1;
@@ -228,6 +232,27 @@ static int refresh_thread(void *opaque)
 		//FIXME ideally we should wait the correct time but SDLs event passing is so slow it would be silly
 		av_usleep(pstrct_stream->m_pAudioStream && pstrct_stream->m_show_mode != SHOW_MODE_VIDEO ? 20 * 1000 : 5000);
 	}
+	return 0;
+}
+
+static int video_refresh_thread(void *opaque)
+{
+	struct_stream_info* pstrct_streaminfo = (struct_stream_info*)opaque;
+	if (NULL == pstrct_streaminfo){
+		TRACE("NULL == pstrct_streaminfo");
+		return -1;
+	}
+	while (!pstrct_streaminfo->m_abort_request) {
+		SDL_Event event;
+		event.type = FF_VIDEO_REFRESH_EVENT;
+		SDL_PushEvent(&event);
+	}
+	SDL_Delay(40);
+	pstrct_streaminfo->m_abort_request = 0;
+	SDL_Event event;
+	event.type = FF_BREAK_EVENT;
+	SDL_PushEvent(&event);
+
 	return 0;
 }
 
@@ -337,11 +362,6 @@ void CLS_DlgStreamPusher::InitDlgItem()
 				TRACE("SDL_CreateRenderer--sdlRenderer == NULL err(%d)\n", SDL_GetError());
 				return;
 			}
-
-			//创建纹理
-			m_pStreamInfo->m_sdlTexture = SDL_CreateTexture(m_pStreamInfo->m_sdlRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, m_pStreamInfo->m_width, m_pStreamInfo->m_height);
-
-			m_pStreamInfo->m_refresh_tid = SDL_CreateThread(refresh_thread,NULL,m_pStreamInfo);
 		} 
 	}
 
@@ -471,15 +491,15 @@ int video_thr(LPVOID lpParam)
 {
 	int iRet = -1;
 	AVFormatContext		*	pFmtCtx				= NULL;
-	AVFormatContext		*	pFOutmtCtx			= NULL;
 	AVInputFormat		*	pVideoInputFmt		= NULL;
-	AVOutputFormat		*	pVideoOutputFmt		= NULL;
-	AVStream				*	pVideoStream		= NULL;
-	AVCodecContext		*	pOutputCodecCtx		= NULL;
-	AVPacket				*	pVideoPacket		= NULL;
+	struct_stream_info	*	strct_streaminfo	= NULL;
+	AVCodecContext		*	pCodecContext		= NULL;
+	AVCodec				*	pCodec				= NULL;
 	int						iVideoIndex			= -1;
 	int						iVideo_Height		= 0;
 	int						iVideo_Width		= 0;
+	int						iVideoPic = 0;
+	SDL_Event event;
 	CLS_DlgStreamPusher* pThis = (CLS_DlgStreamPusher*)lpParam;
 	if (pThis == NULL){
 		TRACE("video_thr--pThis == NULL\n");
@@ -494,6 +514,12 @@ int video_thr(LPVOID lpParam)
 	char* psDevName = pThis->GetDeviceName(n_Video);
 	if (psDevName == NULL){
 		TRACE("video_thr--psDevName == NULL");
+		return iRet;
+	}
+
+	strct_streaminfo = pThis->m_pStreamInfo;
+	if (NULL == strct_streaminfo){
+		TRACE("NULL == strct_streaminfo");
 		return iRet;
 	}
 
@@ -518,37 +544,111 @@ int video_thr(LPVOID lpParam)
 		goto END;
 	}
 
+	pCodecContext = pFmtCtx->streams[iVideoIndex]->codec;
+	if (NULL == pCodecContext){
+		TRACE("NULL == pCodecContext");
+		goto END;
+	}
+	pCodec = avcodec_find_decoder(pCodecContext->codec_id);
+	if (pCodec == NULL){
+		TRACE("avcodec_find_decoder<0");
+		goto END;
+	}
+	if (avcodec_open2(pCodecContext, pCodec, NULL)<0){
+		TRACE("avcodec_open2<0");
+		goto END;
+	}
+
 	//获取视频的宽与高
-	iVideo_Height = pFmtCtx->streams[iVideoIndex]->codec->height;
-	iVideo_Width = pFmtCtx->streams[iVideoIndex]->codec->width;
+	iVideo_Height = pCodecContext->height;//strct_streaminfo->m_height;//
+	iVideo_Width = pCodecContext->width;//strct_streaminfo->m_width;//
 	TRACE("video_thr--video_height[%d],video_width[%d]", iVideo_Height
 	, iVideo_Width);
 
-	//从摄像头获取数据
-	if (0 == av_read_frame(pFmtCtx,pVideoPacket)){
-		//找到解码器
-		AVCodec* pVideo_Decode = avcodec_find_decoder(pFmtCtx->streams[iVideoIndex]->codec->codec_id);
-		if (NULL == pVideo_Decode){
-			TRACE("NULL == pVideo_Decode");
-			goto END;
-		}
+	strct_streaminfo->m_pVideoPacket = (AVPacket*)av_malloc(sizeof(AVPacket));
 
-		//找到之后打开解码器
-		if (0 != avcodec_open2(pFmtCtx->streams[iVideoIndex]->codec, pVideo_Decode,NULL)){
-			TRACE("!avcodec_open2");
-			goto END;
+	strct_streaminfo->m_pVideoFrame = av_frame_alloc();
+	strct_streaminfo->m_pVideoFrameYUV = av_frame_alloc();
+	strct_streaminfo->m_pVideoOutBuffer = (uint8_t *)av_malloc(avpicture_get_size(PIX_FMT_YUV420P, iVideo_Width, iVideo_Height));
+	avpicture_fill((AVPicture *)strct_streaminfo->m_pVideoFrameYUV, strct_streaminfo->m_pVideoOutBuffer, PIX_FMT_YUV420P, iVideo_Width, iVideo_Height);
+	strct_streaminfo->m_video_sws_ctx = sws_getContext(iVideo_Width, iVideo_Height, pCodecContext->pix_fmt,
+		iVideo_Width, iVideo_Height, PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
+	if (NULL == strct_streaminfo->m_video_sws_ctx){
+		TRACE("NULL == strct_streaminfo->m_video_sws_ctx\n");
+		goto END;
+	}
+
+	strct_streaminfo->m_video_refresh_tid = SDL_CreateThread(video_refresh_thread, NULL, strct_streaminfo);
+
+	//从摄像头获取数据
+	for (;;){
+		SDL_WaitEvent(&event);
+		if (event.type == FF_VIDEO_REFRESH_EVENT){
+			if (av_read_frame(pFmtCtx, strct_streaminfo->m_pVideoPacket) >= 0){
+				if (strct_streaminfo->m_pVideoPacket->stream_index == iVideoIndex){
+					iRet = avcodec_decode_video2(pCodecContext, strct_streaminfo->m_pVideoFrame, &iVideoPic, strct_streaminfo->m_pVideoPacket);
+					if (iRet < 0){
+						TRACE("Decode Error.\n");
+						av_free_packet(strct_streaminfo->m_pVideoPacket);
+						goto END;
+					}
+					if (iVideoPic <= 0){
+						TRACE("iVideoPic <= 0");
+						av_free_packet(strct_streaminfo->m_pVideoPacket);
+						goto END;
+					}
+					if (sws_scale(strct_streaminfo->m_video_sws_ctx, (const uint8_t* const*)strct_streaminfo->m_pVideoFrame->data, strct_streaminfo->m_pVideoFrame->linesize, 0, /*strct_streaminfo->m_height*/iVideo_Height,
+						strct_streaminfo->m_pVideoFrameYUV->data, strct_streaminfo->m_pVideoFrameYUV->linesize) < 0){
+						TRACE("sws_scale < 0");
+						av_free_packet(strct_streaminfo->m_pVideoPacket);
+						goto END;
+					}
+
+					if (SDL_UpdateTexture(strct_streaminfo->m_sdlTexture, NULL, strct_streaminfo->m_pVideoFrameYUV->data[0], strct_streaminfo->m_pVideoFrameYUV->linesize[0]) < 0){
+						TRACE("SDL_UpdateTexture < 0\n");
+						goto END;
+					}
+
+					if (SDL_RenderClear(strct_streaminfo->m_sdlRenderer) < 0){
+						TRACE("SDL_RenderClear<0\n");
+						goto END;
+					}
+					
+					if (SDL_RenderCopy(strct_streaminfo->m_sdlRenderer, strct_streaminfo->m_sdlTexture, NULL, NULL) < 0){
+						TRACE("SDL_RenderCopy<0\n");
+						goto END;
+					}
+
+					SDL_RenderPresent(strct_streaminfo->m_sdlRenderer);
+				}
+				av_free_packet(strct_streaminfo->m_pVideoPacket);
+			}
+		}
+		else if (event.type == FF_BREAK_EVENT){
+			break;
 		}
 	}
 
 	iRet = 1;
 END:
+	if (strct_streaminfo->m_video_sws_ctx){
+		sws_freeContext(strct_streaminfo->m_video_sws_ctx);
+	}
+	if (strct_streaminfo->m_pVideoFrameYUV){
+		av_frame_free(&strct_streaminfo->m_pVideoFrameYUV);
+	}
 	avformat_close_input(&pFmtCtx);
 	return iRet;
 }
 
 void CLS_DlgStreamPusher::OnBnClickedBtnDeviceVideoTest()
 {
+	m_blVideoShow = TRUE;
 	m_pStreamInfo->m_itest_start = 1;
+
+	//创建纹理
+	m_pStreamInfo->m_sdlTexture = SDL_CreateTexture(m_pStreamInfo->m_sdlRenderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, m_pStreamInfo->m_width, m_pStreamInfo->m_height);
+
 	m_pStreamInfo->m_show_mode = SHOW_MODE_VIDEO;
 	//视频测试，开启线程打开本地摄像头
 	if (m_pStreamInfo->m_test_video_tid == NULL){
@@ -747,21 +847,15 @@ int audio_thr(LPVOID lpParam)
 	strct_stream_info->m_audio_hw_buf_size = audio_hw_buf_size;
 	strct_stream_info->m_audio_tgt = strct_stream_info->m_audio_src;
 
-	/*int frameIndex = 0;
-	AVPacket pkt_out;
-	AVAudioFifo *fifo = NULL
-	fifo = av_audio_fifo_alloc(pOutputCodecCtx->sample_fmt, pOutputCodecCtx->channels, 1);*/
-
 	AVPacket pkt;
-	//AVFrame *frame;
 	out_buffer = (uint8_t *)av_malloc(MAX_AUDIO_FRAME_SIZE * 2);
-	/*int64_t in_channel_layout = av_get_default_channel_layout(pOutputCodecCtx->channels);
-	au_convert_ctx = swr_alloc();
-	au_convert_ctx = swr_alloc_set_opts(au_convert_ctx, pOutputCodecCtx->channel_layout, out_sample_fmt, pOutputCodecCtx->sample_fmt,
-		in_channel_layout, pOutputCodecCtx->sample_fmt, pOutputCodecCtx->sample_rate, 0, NULL);
-	swr_init(au_convert_ctx);*/
+
+	strct_stream_info->m_audio_refresh_tid = SDL_CreateThread(audio_refresh_thread, NULL, strct_stream_info);
 
 	while (av_read_frame(pFmtCtx, &pkt) == 0 && _kbhit() == 0){
+		if (!pThis->m_blAudioShow){
+			break;
+		}
 		if (pkt.stream_index != iAudioIndex){
 			continue;
 		}
@@ -801,13 +895,13 @@ int audio_thr(LPVOID lpParam)
 		/*if (pOutputCodecCtx->sample_fmt != strct_stream_info->m_audio_src.fmt ||
 			dec_channel_layout != strct_stream_info->m_audio_src.channel_layout ||
 			pOutputCodecCtx->sample_rate != strct_stream_info->m_audio_src.freq){*/
-			swr_free(&strct_stream_info->m_swr_ctx);
-			strct_stream_info->m_swr_ctx = swr_alloc_set_opts(NULL,
+		swr_free(&strct_stream_info->m_audio_swr_ctx);
+		strct_stream_info->m_audio_swr_ctx = swr_alloc_set_opts(NULL,
 				strct_stream_info->m_audio_tgt.channel_layout, strct_stream_info->m_audio_tgt.fmt, strct_stream_info->m_audio_tgt.freq,
 				dec_channel_layout, pOutputCodecCtx->sample_fmt, pOutputCodecCtx->sample_rate,
 				0, NULL);
-			if (!strct_stream_info->m_swr_ctx || swr_init(strct_stream_info->m_swr_ctx) < 0){
-				TRACE("!pThis->m_pStreamInfstrct_stream_infoo->m_swr_ctx || swr_init(strct_stream_info->m_swr_ctx) < 0");
+		if (!strct_stream_info->m_audio_swr_ctx || swr_init(strct_stream_info->m_audio_swr_ctx) < 0){
+				TRACE("!pThis->m_pStreamInfstrct_stream_infoo->m_audio_swr_ctx || swr_init(strct_stream_info->m_audio_swr_ctx) < 0");
 				break;
 			}
 
@@ -816,18 +910,18 @@ int audio_thr(LPVOID lpParam)
 			strct_stream_info->m_audio_src.freq = pOutputCodecCtx->sample_rate;
 			strct_stream_info->m_audio_src.fmt = pOutputCodecCtx->sample_fmt;
 		//}
-		if (NULL != strct_stream_info->m_swr_ctx){
+			if (NULL != strct_stream_info->m_audio_swr_ctx){
 			const uint8_t **in = (const uint8_t **)strct_stream_info->m_pAudioFrame->extended_data;
 			uint8_t *out[] = { strct_stream_info->m_audio_buf2 };
 			int out_count = sizeof(strct_stream_info->m_audio_buf2) / strct_stream_info->m_audio_tgt.channels / av_get_bytes_per_sample(strct_stream_info->m_audio_tgt.fmt);
-			int iRet = swr_convert(strct_stream_info->m_swr_ctx, out, out_count, in, strct_stream_info->m_pAudioFrame->nb_samples);
+			int iRet = swr_convert(strct_stream_info->m_audio_swr_ctx, out, out_count, in, strct_stream_info->m_pAudioFrame->nb_samples);
 			if (iRet < 0){
 				TRACE("swr_convert < 0\n");
 				break;
 			}
 			if (iRet == out_count) {
 				TRACE("warning: audio buffer is probably too small\n");
-				swr_init(strct_stream_info->m_swr_ctx);
+				swr_init(strct_stream_info->m_audio_swr_ctx);
 			}
 			strct_stream_info->m_audio_buf = strct_stream_info->m_audio_buf2;
 			resampled_data_size = iRet * strct_stream_info->m_audio_tgt.channels * av_get_bytes_per_sample(strct_stream_info->m_audio_tgt.fmt);
@@ -955,7 +1049,12 @@ END:
 }
 void CLS_DlgStreamPusher::OnBnClickedBtnDeviceAudioTest()
 {
+	m_blAudioShow = TRUE;
 	m_pStreamInfo->m_itest_start = 1;
+
+	//创建纹理
+	m_pStreamInfo->m_sdlTexture = SDL_CreateTexture(m_pStreamInfo->m_sdlRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, m_pStreamInfo->m_width, m_pStreamInfo->m_height);
+
 	//开启audio测试线程
 	m_pStreamInfo->m_show_mode = SHOW_MODE_WAVES;
 	if (m_pStreamInfo->m_test_audio_tid == NULL){
@@ -995,7 +1094,7 @@ void CLS_DlgStreamPusher::InitData()
 	m_pStreamInfo->m_pVideoStream = NULL;
 	m_pStreamInfo->m_pAudioFrame = NULL;
 	m_pStreamInfo->m_pVideoFrame = NULL;
-	m_pStreamInfo->m_swr_ctx = NULL;
+	m_pStreamInfo->m_audio_swr_ctx = NULL;
 	m_pStreamInfo->m_audio_buf = NULL;
 	m_pStreamInfo->m_audio_buf_size = 0;
 	m_pStreamInfo->m_audio_buf_index = 0;
@@ -1004,7 +1103,8 @@ void CLS_DlgStreamPusher::InitData()
 	m_pStreamInfo->m_abort_request = 0;
 	m_pStreamInfo->m_refresh = 0;
 	m_pStreamInfo->m_show_mode = SHOW_MODE_NONE;
-	m_pStreamInfo->m_refresh_tid = NULL;
+	m_pStreamInfo->m_audio_refresh_tid = NULL;
+	m_pStreamInfo->m_video_refresh_tid = NULL;
 	m_pStreamInfo->m_itest_start = 0;
 
 	m_pThreadEvent = NULL;
@@ -1131,9 +1231,16 @@ void CLS_DlgStreamPusher::event_loop(struct_stream_info *_pstrct_streaminfo)
 
 		SDL_WaitEvent(&event);
 		switch (event.type) {
-		case FF_REFRESH_EVENT:
+		case FF_AUDIO_REFRESH_EVENT:
 			screen_refresh(event.user.data1);
 			_pstrct_streaminfo->m_refresh = 0;
+			break;
+		case FF_VIDEO_REFRESH_EVENT:
+			break;
+		case FF_BREAK_EVENT:
+			break;
+		case FF_QUIT_EVENT:
+			stream_stop(event.user.data1);
 			break;
 		default:
 			break;
@@ -1296,4 +1403,67 @@ void CLS_DlgStreamPusher::fill_rec(SDL_Surface *screen,
 	rect.w = w;
 	rect.h = h;
 	SDL_FillRect(screen, &rect, color);
+}
+
+void CLS_DlgStreamPusher::OnBnClickedBtnDeviceAudioTestStop()
+{
+	//停止音频测试
+	if (!m_blAudioShow){
+		TRACE("!m_blAudioShow");
+		return;
+	}
+	if (NULL == m_pStreamInfo){
+		TRACE("NULL == m_pStreamInfo");
+		return;
+	}
+	m_blAudioShow = FALSE;
+	stop_test();
+	SDL_CloseAudio();
+
+	m_pStreamInfo->m_test_audio_tid = NULL;
+}
+
+void CLS_DlgStreamPusher::OnBnClickedBtnDeviceVideoTestStop()
+{
+	//停止视频测试
+	if (!m_blVideoShow){
+		TRACE("!m_blVideoShow");
+		return;
+	}
+	if (NULL == m_pStreamInfo){
+		TRACE("NULL == m_pStreamInfo");
+		return;
+	}
+	m_blVideoShow = FALSE;
+}
+
+void CLS_DlgStreamPusher::stop_test()
+{
+	SDL_Event event;
+	event.type = FF_QUIT_EVENT;
+	event.user.data1 = m_pStreamInfo;
+	{
+		SDL_PushEvent(&event);
+	}
+}
+
+void CLS_DlgStreamPusher::stream_stop(void *opaque)
+{
+	struct_stream_info* pstrct_streaminfo = (struct_stream_info*)opaque;
+	if (NULL == pstrct_streaminfo){
+		TRACE("NULL == pstrct_streaminfo");
+		return;
+	}
+
+	//做停止流推送的操作
+	pstrct_streaminfo->m_abort_request = 1;
+	SDL_WaitThread(pstrct_streaminfo->m_test_audio_tid, NULL);
+	SDL_WaitThread(pstrct_streaminfo->m_audio_refresh_tid, NULL);
+	SDL_WaitThread(pstrct_streaminfo->m_test_video_tid, NULL);
+	SDL_WaitThread(pstrct_streaminfo->m_video_refresh_tid, NULL);
+
+	pstrct_streaminfo->m_test_audio_tid = NULL;
+	pstrct_streaminfo->m_test_video_tid = NULL;
+	pstrct_streaminfo->m_audio_refresh_tid = NULL;
+	pstrct_streaminfo->m_video_refresh_tid = NULL;
 }
