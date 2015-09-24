@@ -49,6 +49,8 @@ CLS_DlgStreamPusher::CLS_DlgStreamPusher(CWnd* pParent /*=NULL*/)
 	m_mapDeviceInfo.clear();
 	m_blVideoShow = FALSE;
 	m_blAudioShow = FALSE;
+	m_blPushStream = FALSE;
+	m_cstrPushAddr = "";
 }
 
 void CLS_DlgStreamPusher::DoDataExchange(CDataExchange* pDX)
@@ -57,10 +59,11 @@ void CLS_DlgStreamPusher::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHK_SRC_TYPE, m_chkSrcType);
 	DDX_Control(pDX, IDC_EDT_LOACL_FILE_PATH, m_edtLocalFilePath);
 	DDX_Control(pDX, IDC_BTN_OPEN_LOCAL_FILE, m_btnOpenLocalFile);
-	DDX_Control(pDX, IDC_EDT_PUSHER_ADDR, m_edtPuserAddr);
+	DDX_Control(pDX, IDC_EDT_PUSHER_ADDR, m_edtPusherAddr);
 	DDX_Control(pDX, IDC_STC_PREVIEW, m_stcPreview);
 	DDX_Control(pDX, IDC_COB_DEVICE_VIDEO, m_cboDeviceVideo);
 	DDX_Control(pDX, IDC_COB_DEVICE_AUDIO, m_cboDeviceAudio);
+	DDX_Control(pDX, IDC_CHK_SHOW_VIDEO, m_chkShowVideo);
 }
 
 BEGIN_MESSAGE_MAP(CLS_DlgStreamPusher, CDialog)
@@ -76,6 +79,7 @@ BEGIN_MESSAGE_MAP(CLS_DlgStreamPusher, CDialog)
 	ON_BN_CLICKED(IDC_BTN_DEVICE_AUDIO_TEST, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceAudioTest)
 	ON_BN_CLICKED(IDC_BTN_DEVICE_AUDIO_TEST_STOP, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceAudioTestStop)
 	ON_BN_CLICKED(IDC_BTN_DEVICE_VIDEO_TEST_STOP, &CLS_DlgStreamPusher::OnBnClickedBtnDeviceVideoTestStop)
+	ON_BN_CLICKED(IDC_CHK_SHOW_VIDEO, &CLS_DlgStreamPusher::OnBnClickedChkShowVideo)
 END_MESSAGE_MAP()
 
 
@@ -139,7 +143,13 @@ HCURSOR CLS_DlgStreamPusher::OnQueryDragIcon()
 
 void CLS_DlgStreamPusher::OnBnClickedOk()
 {
-	//确定进行推流TODO::进行推流操作
+	//进行推流操作
+	m_edtPusherAddr.GetWindowText(m_cstrPushAddr);
+	if (m_cstrPushAddr == ""){
+		MessageBox(_T("请输入正确的推流地址！\n"));
+		return;
+	}
+	m_blPushStream = TRUE;
 	//ffmpeg - r 25 - f dshow - s 640×480 - i video = ”video source name” : audio = ”audio source name” - vcodec libx264 - b 600k - vpre slow - acodec libfaac - ab 128k - f flv rtmp ://server/application/stream_name
 }
 
@@ -374,6 +384,8 @@ void CLS_DlgStreamPusher::InitDlgItem()
 		m_pThreadEvent = AfxBeginThread(Thread_Event, this);//开启线程
 	}
 
+	m_edtPusherAddr.SetWindowText("rtmp://5380.lsspublish.aodianyun.com/Young/stream");
+
 	return;
 }
 
@@ -491,15 +503,20 @@ int video_thr(LPVOID lpParam)
 {
 	int iRet = -1;
 	AVFormatContext		*	pFmtCtx				= NULL;
+	AVFormatContext		*	pRtmpFmtCtx			= NULL;
 	AVInputFormat		*	pVideoInputFmt		= NULL;
+	AVOutputFormat		*	pVideoOutfmt		= NULL;
 	struct_stream_info	*	strct_streaminfo	= NULL;
 	AVCodecContext		*	pCodecContext		= NULL;
 	AVCodec				*	pCodec				= NULL;
 	int						iVideoIndex			= -1;
 	int						iVideo_Height		= 0;
 	int						iVideo_Width		= 0;
-	int						iVideoPic = 0;
-	SDL_Event event;
+	int						iVideoPic			= 0;
+	int64_t					start_time			= 0;
+	int						frame_index			= 0;
+	SDL_Event				event;
+
 	CLS_DlgStreamPusher* pThis = (CLS_DlgStreamPusher*)lpParam;
 	if (pThis == NULL){
 		TRACE("video_thr--pThis == NULL\n");
@@ -517,12 +534,30 @@ int video_thr(LPVOID lpParam)
 		return iRet;
 	}
 
+	while (1){
+		if (pThis->m_cstrPushAddr != ""){
+			break;
+		}
+	}
+
+	//根据推流地址获取到AVFormatContext
+	avformat_alloc_output_context2(&pRtmpFmtCtx, NULL, "flv", pThis->m_cstrPushAddr);
+
+	if (NULL == pRtmpFmtCtx){
+		TRACE("NULL == pRtmpFmtCtx");
+		return iRet;
+	}
+	pVideoOutfmt = pRtmpFmtCtx->oformat;
+
 	strct_streaminfo = pThis->m_pStreamInfo;
 	if (NULL == strct_streaminfo){
 		TRACE("NULL == strct_streaminfo");
 		return iRet;
 	}
 
+	FILE *fp_yuv = fopen("output.yuv", "wb+");
+
+	pFmtCtx = avformat_alloc_context();
 	if (avformat_open_input(&pFmtCtx, psDevName, pVideoInputFmt, NULL) != 0){
 		TRACE("avformat_open_input err!\n");
 		goto END;
@@ -559,6 +594,42 @@ int video_thr(LPVOID lpParam)
 		goto END;
 	}
 
+	for (int i = 0; i < pFmtCtx->nb_streams; i++) {
+		//根据输入流创建输出流（Create output AVStream according to input AVStream）  
+		AVStream *in_stream = pFmtCtx->streams[i];
+		AVStream *out_stream = avformat_new_stream(pRtmpFmtCtx, in_stream->codec->codec);
+		if (!out_stream) {
+			printf("Failed allocating output stream\n");
+			iRet = AVERROR_UNKNOWN;
+			goto END;
+		}
+		//复制AVCodecContext的设置（Copy the settings of AVCodecContext）  
+		iRet = avcodec_copy_context(out_stream->codec, in_stream->codec);
+		if (iRet < 0) {
+			TRACE("Failed to copy context from input to output stream codec context\n");
+			goto END;
+		}
+		out_stream->codec->codec_tag = 0;
+		if (pRtmpFmtCtx->oformat->flags & AVFMT_GLOBALHEADER)
+			out_stream->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
+	}
+
+	/*if (!(pVideoOutfmt->flags & AVFMT_NOFILE)) {
+		iRet = avio_open(&pRtmpFmtCtx->pb, pThis->m_cstrPushAddr, AVIO_FLAG_WRITE);
+		if (iRet < 0) {
+			TRACE("Could not open output URL '%s'", pThis->m_cstrPushAddr);
+			goto END;
+		}
+	}*/
+
+	/*iRet = avformat_write_header(pRtmpFmtCtx, NULL);
+	if (iRet < 0) {
+		TRACE("Error occurred when opening output URL\n");
+		goto END;
+	}*/
+
+	start_time = av_gettime();
+
 	//获取视频的宽与高
 	iVideo_Height = pCodecContext->height;//strct_streaminfo->m_height;//
 	iVideo_Width = pCodecContext->width;//strct_streaminfo->m_width;//
@@ -569,10 +640,10 @@ int video_thr(LPVOID lpParam)
 
 	strct_streaminfo->m_pVideoFrame = av_frame_alloc();
 	strct_streaminfo->m_pVideoFrameYUV = av_frame_alloc();
-	strct_streaminfo->m_pVideoOutBuffer = (uint8_t *)av_malloc(avpicture_get_size(PIX_FMT_YUV420P, iVideo_Width, iVideo_Height));
-	avpicture_fill((AVPicture *)strct_streaminfo->m_pVideoFrameYUV, strct_streaminfo->m_pVideoOutBuffer, PIX_FMT_YUV420P, iVideo_Width, iVideo_Height);
+	strct_streaminfo->m_pVideoOutBuffer = (uint8_t *)av_malloc(avpicture_get_size(AV_PIX_FMT_YUV420P, iVideo_Width, iVideo_Height));
+	avpicture_fill((AVPicture *)strct_streaminfo->m_pVideoFrameYUV, strct_streaminfo->m_pVideoOutBuffer, AV_PIX_FMT_YUV420P, iVideo_Width, iVideo_Height);
 	strct_streaminfo->m_video_sws_ctx = sws_getContext(iVideo_Width, iVideo_Height, pCodecContext->pix_fmt,
-		iVideo_Width, iVideo_Height, PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
+		iVideo_Width, iVideo_Height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
 	if (NULL == strct_streaminfo->m_video_sws_ctx){
 		TRACE("NULL == strct_streaminfo->m_video_sws_ctx\n");
 		goto END;
@@ -582,44 +653,102 @@ int video_thr(LPVOID lpParam)
 
 	//从摄像头获取数据
 	for (;;){
+		AVStream *in_stream, *out_stream;
 		SDL_WaitEvent(&event);
 		if (event.type == FF_VIDEO_REFRESH_EVENT){
 			if (av_read_frame(pFmtCtx, strct_streaminfo->m_pVideoPacket) >= 0){
+				//if (strct_streaminfo->m_pVideoPacket->pts == AV_NOPTS_VALUE){
+				//	//Write PTS  
+				//	AVRational time_base1 = pFmtCtx->streams[iVideoIndex]->time_base;
+				//	//Duration between 2 frames (us)  
+				//	int64_t calc_duration = (double)AV_TIME_BASE / av_q2d(pFmtCtx->streams[iVideoIndex]->r_frame_rate);
+				//	//Parameters  
+				//	strct_streaminfo->m_pVideoPacket->pts = (double)(frame_index*calc_duration) / (double)(av_q2d(time_base1)*AV_TIME_BASE);
+				//	strct_streaminfo->m_pVideoPacket->dts = strct_streaminfo->m_pVideoPacket->pts;
+				//	strct_streaminfo->m_pVideoPacket->duration = (double)calc_duration / (double)(av_q2d(time_base1)*AV_TIME_BASE);
+				//}
+
 				if (strct_streaminfo->m_pVideoPacket->stream_index == iVideoIndex){
-					iRet = avcodec_decode_video2(pCodecContext, strct_streaminfo->m_pVideoFrame, &iVideoPic, strct_streaminfo->m_pVideoPacket);
-					if (iRet < 0){
-						TRACE("Decode Error.\n");
-						av_free_packet(strct_streaminfo->m_pVideoPacket);
-						goto END;
-					}
-					if (iVideoPic <= 0){
-						TRACE("iVideoPic <= 0");
-						av_free_packet(strct_streaminfo->m_pVideoPacket);
-						goto END;
-					}
-					if (sws_scale(strct_streaminfo->m_video_sws_ctx, (const uint8_t* const*)strct_streaminfo->m_pVideoFrame->data, strct_streaminfo->m_pVideoFrame->linesize, 0, /*strct_streaminfo->m_height*/iVideo_Height,
-						strct_streaminfo->m_pVideoFrameYUV->data, strct_streaminfo->m_pVideoFrameYUV->linesize) < 0){
-						TRACE("sws_scale < 0");
-						av_free_packet(strct_streaminfo->m_pVideoPacket);
-						goto END;
-					}
 
-					if (SDL_UpdateTexture(strct_streaminfo->m_sdlTexture, NULL, strct_streaminfo->m_pVideoFrameYUV->data[0], strct_streaminfo->m_pVideoFrameYUV->linesize[0]) < 0){
-						TRACE("SDL_UpdateTexture < 0\n");
-						goto END;
-					}
+					//AVRational time_base = pFmtCtx->streams[iVideoIndex]->time_base;
+					//AVRational time_base_q = { 1, AV_TIME_BASE };
+					//int64_t pts_time = av_rescale_q(strct_streaminfo->m_pVideoPacket->dts, time_base, time_base_q);
+					//int64_t now_time = av_gettime() - start_time;
+					//if (pts_time > now_time)
+					//	av_usleep(pts_time - now_time);
 
-					if (SDL_RenderClear(strct_streaminfo->m_sdlRenderer) < 0){
-						TRACE("SDL_RenderClear<0\n");
-						goto END;
-					}
-					
-					if (SDL_RenderCopy(strct_streaminfo->m_sdlRenderer, strct_streaminfo->m_sdlTexture, NULL, NULL) < 0){
-						TRACE("SDL_RenderCopy<0\n");
-						goto END;
-					}
+					//in_stream = pFmtCtx->streams[strct_streaminfo->m_pVideoPacket->stream_index];
+					//out_stream = pRtmpFmtCtx->streams[strct_streaminfo->m_pVideoPacket->stream_index];
+					///* copy packet */
+					////转换PTS/DTS（Convert PTS/DTS）  
+					//strct_streaminfo->m_pVideoPacket->pts = av_rescale_q_rnd(strct_streaminfo->m_pVideoPacket->pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+					//strct_streaminfo->m_pVideoPacket->dts = av_rescale_q_rnd(strct_streaminfo->m_pVideoPacket->dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+					//strct_streaminfo->m_pVideoPacket->duration = av_rescale_q(strct_streaminfo->m_pVideoPacket->duration, in_stream->time_base, out_stream->time_base);
+					//strct_streaminfo->m_pVideoPacket->pos = -1;
+					//TRACE("Send %8d video frames to output URL\n", frame_index);
 
-					SDL_RenderPresent(strct_streaminfo->m_sdlRenderer);
+					//frame_index++;
+
+					//iRet = av_interleaved_write_frame(pRtmpFmtCtx, strct_streaminfo->m_pVideoPacket);
+
+					//if (iRet < 0) {
+					//	TRACE("Error muxing packet\n");
+					//	break;
+					//}
+
+					if (pThis->m_blVideoShow){
+
+						//解码显示
+						iRet = avcodec_decode_video2(pCodecContext, strct_streaminfo->m_pVideoFrame, &iVideoPic, strct_streaminfo->m_pVideoPacket);
+						if (iRet < 0){
+							TRACE("Decode Error.\n");
+							av_free_packet(strct_streaminfo->m_pVideoPacket);
+							goto END;
+						}
+						if (iVideoPic <= 0){
+							TRACE("iVideoPic <= 0");
+							av_free_packet(strct_streaminfo->m_pVideoPacket);
+							goto END;
+						}
+
+						int y_size = iVideo_Width*iVideo_Height;
+						//fwrite(strct_streaminfo->m_pVideoFrameYUV->data[0], 1, y_size, fp_yuv);    //Y   
+						//fwrite(strct_streaminfo->m_pVideoFrameYUV->data[1], 1, y_size / 4, fp_yuv);  //U  
+						//fwrite(strct_streaminfo->m_pVideoFrameYUV->data[2], 1, y_size / 4, fp_yuv);  //V 
+
+						if (sws_scale(strct_streaminfo->m_video_sws_ctx, (const uint8_t* const*)strct_streaminfo->m_pVideoFrame->data, strct_streaminfo->m_pVideoFrame->linesize, 0, /*strct_streaminfo->m_height*/iVideo_Height,
+							strct_streaminfo->m_pVideoFrameYUV->data, strct_streaminfo->m_pVideoFrameYUV->linesize) < 0){
+							TRACE("sws_scale < 0");
+							av_free_packet(strct_streaminfo->m_pVideoPacket);
+							goto END;
+						}
+
+						if (pThis->m_blPushStream){
+							//进行推流操作
+							if (pThis->push_stream() < 0){
+								TRACE("pThis->push_stream() < 0");
+								goto END;
+							}
+						}
+
+
+						if (SDL_UpdateTexture(strct_streaminfo->m_sdlTexture, NULL, strct_streaminfo->m_pVideoFrameYUV->data[0], strct_streaminfo->m_pVideoFrameYUV->linesize[0]) < 0){
+							TRACE("SDL_UpdateTexture < 0\n");
+							goto END;
+						}
+
+						if (SDL_RenderClear(strct_streaminfo->m_sdlRenderer) < 0){
+							TRACE("SDL_RenderClear<0\n");
+							goto END;
+						}
+						
+						if (SDL_RenderCopy(strct_streaminfo->m_sdlRenderer, strct_streaminfo->m_sdlTexture, NULL, NULL) < 0){
+							TRACE("SDL_RenderCopy<0\n");
+							goto END;
+						}
+
+						SDL_RenderPresent(strct_streaminfo->m_sdlRenderer);
+					}
 				}
 				av_free_packet(strct_streaminfo->m_pVideoPacket);
 			}
@@ -628,9 +757,11 @@ int video_thr(LPVOID lpParam)
 			break;
 		}
 	}
+	//av_write_trailer(pRtmpFmtCtx);
 
 	iRet = 1;
 END:
+	fclose(fp_yuv);
 	if (strct_streaminfo->m_video_sws_ctx){
 		sws_freeContext(strct_streaminfo->m_video_sws_ctx);
 	}
@@ -638,12 +769,12 @@ END:
 		av_frame_free(&strct_streaminfo->m_pVideoFrameYUV);
 	}
 	avformat_close_input(&pFmtCtx);
+	avformat_free_context(pRtmpFmtCtx);
 	return iRet;
 }
 
 void CLS_DlgStreamPusher::OnBnClickedBtnDeviceVideoTest()
 {
-	m_blVideoShow = TRUE;
 	m_pStreamInfo->m_itest_start = 1;
 
 	//创建纹理
@@ -1466,4 +1597,22 @@ void CLS_DlgStreamPusher::stream_stop(void *opaque)
 	pstrct_streaminfo->m_test_video_tid = NULL;
 	pstrct_streaminfo->m_audio_refresh_tid = NULL;
 	pstrct_streaminfo->m_video_refresh_tid = NULL;
+}
+
+int CLS_DlgStreamPusher::push_stream()
+{
+	int iRet = 0;
+
+	return iRet;
+}
+
+void CLS_DlgStreamPusher::OnBnClickedChkShowVideo()
+{
+	//控制是否显示视频
+	if (m_chkShowVideo.GetCheck()){
+		m_blVideoShow = TRUE;
+	}
+	else{
+		m_blVideoShow = FALSE;
+	}
 }

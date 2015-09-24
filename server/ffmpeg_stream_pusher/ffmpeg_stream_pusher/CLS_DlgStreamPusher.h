@@ -156,6 +156,7 @@ public:
 	afx_msg void OnBnClickedBtnOpenLocalFile();
 	afx_msg void OnBnClickedBtnPreview();
 	afx_msg void OnBnClickedCancel();
+	afx_msg void OnBnClickedChkShowVideo();
 	afx_msg void OnBnClickedBtnDeviceVideoTest();
 	afx_msg void OnBnClickedBtnDeviceAudioTest();
 	afx_msg void OnBnClickedBtnDeviceAudioTestStop();
@@ -165,8 +166,9 @@ public:
 
 	//控件定义
 	CEdit	m_edtLocalFilePath;
-	CEdit	m_edtPuserAddr;
+	CEdit	m_edtPusherAddr;
 	CButton m_chkSrcType;
+	CButton m_chkShowVideo;
 	CButton m_btnOpenLocalFile;
 	CStatic m_stcPreview;
 	CComboBox m_cboDeviceVideo;
@@ -310,7 +312,11 @@ public:
 	**********************/
 	void event_loop(struct_stream_info *_pstrct_streaminfo);
 
+	int	push_stream();
+
 	struct_stream_info*						m_pStreamInfo;	//音视频全局结构体
 	BOOL										m_blVideoShow;	//是否显示视频
 	BOOL										m_blAudioShow;	//是否显示音频
+	BOOL										m_blPushStream;	//是否进行推流
+	CString									m_cstrPushAddr;	//推流地址
 };
