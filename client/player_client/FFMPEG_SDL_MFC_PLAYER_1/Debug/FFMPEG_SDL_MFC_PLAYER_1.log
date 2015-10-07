@@ -1,0 +1,35 @@
+﻿  FFMPEG_SDL_MFC_PLAYER_1Dlg.cpp
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(60): warning C4244: “=”: 从“int64_t”转换到“int”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(51): warning C4101: “flags”: 未引用的局部变量
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(51): warning C4101: “stream_type”: 未引用的局部变量
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(249): warning C4244: “=”: 从“int64_t”转换到“int”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(266): warning C4244: “=”: 从“int64_t”转换到“int”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(770): warning C4101: “pFormatCtx”: 未引用的局部变量
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(843): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(881): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(925): warning C4244: “参数”: 从“double”转换到“DWORD”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1152): warning C4996: 'avcodec_alloc_frame': 被声明为已否决
+          c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdk_32\include\libavcodec\avcodec.h(3491) : 参见“avcodec_alloc_frame”的声明
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1180): warning C4305: “=”: 从“int64_t”到“double”截断
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1206): warning C4996: 'avcodec_free_frame': 被声明为已否决
+          c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdk_32\include\libavcodec\avcodec.h(3516) : 参见“avcodec_free_frame”的声明
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1217): warning C4996: 'avcodec_alloc_frame': 被声明为已否决
+          c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdk_32\include\libavcodec\avcodec.h(3491) : 参见“avcodec_alloc_frame”的声明
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1382): warning C4018: “>=”: 有符号/无符号不匹配
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1467): warning C4018: “>=”: 有符号/无符号不匹配
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1770): warning C4244: “=”: 从“int64_t”转换到“double”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(1786): warning C4244: “=”: 从“int64_t”转换到“double”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2072): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2340): warning C4305: “=”: 从“int64_t”到“int”截断
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2340): warning C4309: “=”: 截断常量值
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2441): warning C4305: “=”: 从“int64_t”到“int”截断
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2441): warning C4309: “=”: 截断常量值
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2551): warning C4305: “=”: 从“int64_t”到“int”截断
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2551): warning C4309: “=”: 截断常量值
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2704): warning C4305: “=”: 从“int64_t”到“int”截断
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2704): warning C4309: “=”: 截断常量值
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2624): warning C4101: “i”: 未引用的局部变量
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2623): warning C4101: “vp”: 未引用的局部变量
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(2936): warning C4805: “==”: 在操作中将类型“int”与类型“bool”混合不安全
+c:\当前项目\videoplay\videoplayer_2\player_ok\ffmpeg_sdl_mfc_player_1\ffmpeg_sdl_mfc_player_1dlg.cpp(3339): warning C4101: “event”: 未引用的局部变量
+  FFMPEG_SDL_MFC_PLAYER_1.vcxproj -> C:\当前项目\VideoPlay\VideoPlayer_2\Player_ok\Debug\VideoPlay.exe

@@ -614,19 +614,19 @@ int video_thr(LPVOID lpParam)
 			out_stream->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
 	}
 
-	/*if (!(pVideoOutfmt->flags & AVFMT_NOFILE)) {
+	if (!(pVideoOutfmt->flags & AVFMT_NOFILE)) {
 		iRet = avio_open(&pRtmpFmtCtx->pb, pThis->m_cstrPushAddr, AVIO_FLAG_WRITE);
 		if (iRet < 0) {
 			TRACE("Could not open output URL '%s'", pThis->m_cstrPushAddr);
 			goto END;
 		}
-	}*/
+	}
 
-	/*iRet = avformat_write_header(pRtmpFmtCtx, NULL);
+	iRet = avformat_write_header(pRtmpFmtCtx, NULL);
 	if (iRet < 0) {
 		TRACE("Error occurred when opening output URL\n");
 		goto END;
-	}*/
+	}
 
 	start_time = av_gettime();
 
@@ -657,44 +657,44 @@ int video_thr(LPVOID lpParam)
 		SDL_WaitEvent(&event);
 		if (event.type == FF_VIDEO_REFRESH_EVENT){
 			if (av_read_frame(pFmtCtx, strct_streaminfo->m_pVideoPacket) >= 0){
-				//if (strct_streaminfo->m_pVideoPacket->pts == AV_NOPTS_VALUE){
-				//	//Write PTS  
-				//	AVRational time_base1 = pFmtCtx->streams[iVideoIndex]->time_base;
-				//	//Duration between 2 frames (us)  
-				//	int64_t calc_duration = (double)AV_TIME_BASE / av_q2d(pFmtCtx->streams[iVideoIndex]->r_frame_rate);
-				//	//Parameters  
-				//	strct_streaminfo->m_pVideoPacket->pts = (double)(frame_index*calc_duration) / (double)(av_q2d(time_base1)*AV_TIME_BASE);
-				//	strct_streaminfo->m_pVideoPacket->dts = strct_streaminfo->m_pVideoPacket->pts;
-				//	strct_streaminfo->m_pVideoPacket->duration = (double)calc_duration / (double)(av_q2d(time_base1)*AV_TIME_BASE);
-				//}
+				if (strct_streaminfo->m_pVideoPacket->pts == AV_NOPTS_VALUE){
+					//Write PTS  
+					AVRational time_base1 = pFmtCtx->streams[iVideoIndex]->time_base;
+					//Duration between 2 frames (us)  
+					int64_t calc_duration = (double)AV_TIME_BASE / av_q2d(pFmtCtx->streams[iVideoIndex]->r_frame_rate);
+					//Parameters  
+					strct_streaminfo->m_pVideoPacket->pts = (double)(frame_index*calc_duration) / (double)(av_q2d(time_base1)*AV_TIME_BASE);
+					strct_streaminfo->m_pVideoPacket->dts = strct_streaminfo->m_pVideoPacket->pts;
+					strct_streaminfo->m_pVideoPacket->duration = (double)calc_duration / (double)(av_q2d(time_base1)*AV_TIME_BASE);
+				}
 
 				if (strct_streaminfo->m_pVideoPacket->stream_index == iVideoIndex){
 
-					//AVRational time_base = pFmtCtx->streams[iVideoIndex]->time_base;
-					//AVRational time_base_q = { 1, AV_TIME_BASE };
-					//int64_t pts_time = av_rescale_q(strct_streaminfo->m_pVideoPacket->dts, time_base, time_base_q);
-					//int64_t now_time = av_gettime() - start_time;
-					//if (pts_time > now_time)
-					//	av_usleep(pts_time - now_time);
+					AVRational time_base = pFmtCtx->streams[iVideoIndex]->time_base;
+					AVRational time_base_q = { 1, AV_TIME_BASE };
+					int64_t pts_time = av_rescale_q(strct_streaminfo->m_pVideoPacket->dts, time_base, time_base_q);
+					int64_t now_time = av_gettime() - start_time;
+					if (pts_time > now_time)
+						av_usleep(pts_time - now_time);
 
-					//in_stream = pFmtCtx->streams[strct_streaminfo->m_pVideoPacket->stream_index];
-					//out_stream = pRtmpFmtCtx->streams[strct_streaminfo->m_pVideoPacket->stream_index];
-					///* copy packet */
-					////×ª»»PTS/DTS£¨Convert PTS/DTS£©  
-					//strct_streaminfo->m_pVideoPacket->pts = av_rescale_q_rnd(strct_streaminfo->m_pVideoPacket->pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-					//strct_streaminfo->m_pVideoPacket->dts = av_rescale_q_rnd(strct_streaminfo->m_pVideoPacket->dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-					//strct_streaminfo->m_pVideoPacket->duration = av_rescale_q(strct_streaminfo->m_pVideoPacket->duration, in_stream->time_base, out_stream->time_base);
-					//strct_streaminfo->m_pVideoPacket->pos = -1;
-					//TRACE("Send %8d video frames to output URL\n", frame_index);
+					in_stream = pFmtCtx->streams[strct_streaminfo->m_pVideoPacket->stream_index];
+					out_stream = pRtmpFmtCtx->streams[strct_streaminfo->m_pVideoPacket->stream_index];
+					/* copy packet */
+					//×ª»»PTS/DTS£¨Convert PTS/DTS£©  
+					strct_streaminfo->m_pVideoPacket->pts = av_rescale_q_rnd(strct_streaminfo->m_pVideoPacket->pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+					strct_streaminfo->m_pVideoPacket->dts = av_rescale_q_rnd(strct_streaminfo->m_pVideoPacket->dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+					strct_streaminfo->m_pVideoPacket->duration = av_rescale_q(strct_streaminfo->m_pVideoPacket->duration, in_stream->time_base, out_stream->time_base);
+					strct_streaminfo->m_pVideoPacket->pos = -1;
+					TRACE("Send %8d video frames to output URL\n", frame_index);
 
-					//frame_index++;
+					frame_index++;
 
-					//iRet = av_interleaved_write_frame(pRtmpFmtCtx, strct_streaminfo->m_pVideoPacket);
+					iRet = av_interleaved_write_frame(pRtmpFmtCtx, strct_streaminfo->m_pVideoPacket);
 
-					//if (iRet < 0) {
-					//	TRACE("Error muxing packet\n");
-					//	break;
-					//}
+					if (iRet < 0) {
+						TRACE("Error muxing packet\n");
+						break;
+					}
 
 					if (pThis->m_blVideoShow){
 
@@ -710,11 +710,6 @@ int video_thr(LPVOID lpParam)
 							av_free_packet(strct_streaminfo->m_pVideoPacket);
 							goto END;
 						}
-
-						int y_size = iVideo_Width*iVideo_Height;
-						//fwrite(strct_streaminfo->m_pVideoFrameYUV->data[0], 1, y_size, fp_yuv);    //Y   
-						//fwrite(strct_streaminfo->m_pVideoFrameYUV->data[1], 1, y_size / 4, fp_yuv);  //U  
-						//fwrite(strct_streaminfo->m_pVideoFrameYUV->data[2], 1, y_size / 4, fp_yuv);  //V 
 
 						if (sws_scale(strct_streaminfo->m_video_sws_ctx, (const uint8_t* const*)strct_streaminfo->m_pVideoFrame->data, strct_streaminfo->m_pVideoFrame->linesize, 0, /*strct_streaminfo->m_height*/iVideo_Height,
 							strct_streaminfo->m_pVideoFrameYUV->data, strct_streaminfo->m_pVideoFrameYUV->linesize) < 0){
@@ -757,11 +752,11 @@ int video_thr(LPVOID lpParam)
 			break;
 		}
 	}
-	//av_write_trailer(pRtmpFmtCtx);
+	av_write_trailer(pRtmpFmtCtx);
 
 	iRet = 1;
 END:
-	fclose(fp_yuv);
+	//fclose(fp_yuv);
 	if (strct_streaminfo->m_video_sws_ctx){
 		sws_freeContext(strct_streaminfo->m_video_sws_ctx);
 	}
